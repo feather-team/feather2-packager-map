@@ -1,12 +1,12 @@
-define('/static/pagelet.js', function(require, exports, module){
+define('static/pagelet.js', function(require, exports, module){
 var doc = document, head = doc.getElementsByTagName('head')[0];
 
-function _(_id){
-	return doc.getElementById(_id);
+function _(id){
+	return doc.getElementById(id);
 }
 
-function append(_parent, childNode){
-	_parent.appendChild(childNode);
+function append(parent, childNode){
+	parent.appendChild(childNode);
 }
 
 function createElement(tagName, isText){
@@ -16,10 +16,9 @@ function createElement(tagName, isText){
 module.exports = function(id, targetId, type){
 	var parent = createElement('div'), frame = document.createDocumentFragment();
 	var isScript = /script/i, isStyle = /style/i, isJsLike = /text\/javascript/i, reg = new RegExp('<\\\\\\\/' + type + '>', 'g');
-	
-	id = _(id);
+	var dom = _(id);
 
-	parent.innerHTML = (id.value || id.innerHTML).replace(reg, '</' + type + '>');
+	parent.innerHTML = (dom.value || dom.innerHTML).replace(reg, '</' + type + '>');
 
 	for(var i = 0; i < parent.childNodes.length; i++){
 		var child = parent.childNodes[i--], tagName = child.tagName, text = child.innerHTML, element;

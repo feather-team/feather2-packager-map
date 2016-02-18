@@ -1,5 +1,6 @@
 module.exports = function(ret, conf, setting, opt){
     var modulename = feather.config.get('project.modulename');
+    var isPd = /^(?:pd|production)$/.test(feather.project.currentMedia());
 
     if(!modulename || modulename == 'common'){
         ['feather.js', 'pagelet.js'].forEach(function(item){
@@ -7,11 +8,13 @@ module.exports = function(ret, conf, setting, opt){
             var content = feather.util.read(__dirname + '/../vendor/lib/' + item);
 
             if(item == 'feather.js'){
-                var _config = 'require.config=' + feather.util.json(feather.config.get('require.config'));
+                var _config = 'require.mergeConfig(' + feather.util.json(feather.config.get('require.config')) + ')';
                 content += ';' + _config;
             }
 
-            content = require('uglify-js').minify(content, {fromString: true}).code;
+            if(isPd){
+                content = require('uglify-js').minify(content, {fromString: true}).code;
+            }
 
             file.setContent(content);
             ret.pkg[file.subpath] = file;

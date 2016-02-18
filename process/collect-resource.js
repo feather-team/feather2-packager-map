@@ -3,7 +3,7 @@
 var TYPES = ['headJs', 'bottomJs', 'css'];
 
 module.exports = function(ret, conf, setting, opt){
-    var uriMap = ret.uriMap, commonMap = ret.commonMap;
+    var uriMap = ret.uriMap, commonMap = feather.commonInfo.map;
 
     feather.util.map(ret.src, function(path, file){
         if(!file.isHtmlLike) return;
@@ -14,7 +14,7 @@ module.exports = function(ret, conf, setting, opt){
             (file.extras[type] || []).forEach(function(url){
                 var _url = url.replace(/^\/+/, '');
 
-                if(!uriMap[url] && !commonMap[_url] && !feather.util.isRemoteUrl(url)){
+                if(!uriMap[url] && !commonMap[_url] && !ret.map.res[_url] && !feather.util.isRemoteUrl(url)){
                     feather.log.warn(file.id + ':[' + url + '] is not exists!');
                     links.push(url);
                 }else{

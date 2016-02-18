@@ -1,3 +1,5 @@
+'use strict';
+
 function getPkgHas(ret, pkgFile){
     var url = pkgFile.getUrl(), pkgs = ret.map.pkg;
 
@@ -13,14 +15,32 @@ module.exports = function(ret){
     var hash = {map: {}}, modulename = feather.config.get('project.modulename');
 
     feather.util.map(files, function(path, file){
+        if(!file.isCssLike && !file.isJsLike && !file.isHtmlLike) return;
+
         var _ = {}, extras = file.extras;
 
         if(file.isHtmlLike){
-            ['widget', 'headJs', 'bottomJs', 'css'].forEach(function(type){
-                if(extras[type].length){
+            ['pagelet', 'widget', 'headJs', 'bottomJs', 'css'].forEach(function(type){
+                if(extras[type] && extras[type].length){
                     _[type] = extras[type];
                 }
             });
+
+            var refs = [];
+
+            if(_.widget){
+                refs = refs.concat(_.widget);
+                delete _.widget;
+            }
+
+            if(_.pagelet){
+                refs = refs.concat(_.pagelet);
+                delete _.pagelet;
+            }
+
+            if(refs.length){
+                _.refs = refs;
+            }
         }else{
             _.url = file.getUrl();
 
@@ -35,17 +55,17 @@ module.exports = function(ret){
 
                 if(has){
                     _.isPkg = true;
-                    _.has = getPkgHas(ret, file);
+                    _.has = has;
                 }
+            }
+
+            if(file.requires.length){
+                _.deps = file.requires;
             }
         }
 
         if(extras.async && extras.async.length){
-            _.async = extras.async;
-        }
-
-        if(file.requires.length){
-            _.deps = file.requires;
+            _.asyncs = extras.async;
         }
 
         if(file.isPagelet){
@@ -60,6 +80,10 @@ module.exports = function(ret){
             _.type = 'js';
         }else if(file.isCssLike){
             _.type = 'css';
+        }
+
+        if(file.isThird){
+            _.isThird = true;
         }
 
         if(!feather.util.isEmptyObject(_)){
