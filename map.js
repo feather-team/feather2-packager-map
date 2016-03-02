@@ -13,35 +13,14 @@ function getPkgHas(ret, pkgFile){
 module.exports = function(ret){
     var files = feather.util.merge(feather.util.merge({}, ret.src), ret.pkg);
     var hash = {map: {}}, modulename = feather.config.get('project.modulename');
+    var uriMap = ret.uriMap, commonMap = feather.commonInfo.map;
 
     feather.util.map(files, function(path, file){
         if(!file.isCssLike && !file.isJsLike && !file.isHtmlLike) return;
 
         var _ = {}, extras = file.extras;
 
-        if(file.isHtmlLike){
-            ['pagelet', 'widget', 'headJs', 'bottomJs', 'css'].forEach(function(type){
-                if(extras[type] && extras[type].length){
-                    _[type] = extras[type];
-                }
-            });
-
-            var refs = [];
-
-            if(_.widget){
-                refs = refs.concat(_.widget);
-                delete _.widget;
-            }
-
-            if(_.pagelet){
-                refs = refs.concat(_.pagelet);
-                delete _.pagelet;
-            }
-
-            if(refs.length){
-                _.refs = refs;
-            }
-        }else{
+        if(!file.isHtmlLike){
             _.url = file.getUrl();
 
             var map = ret.map.res[file.id];
@@ -60,14 +39,66 @@ module.exports = function(ret){
             }
 
             if(file.requires.length){
-                _.deps = file.requires;
+                extras.deps = file.requires;
             }
         }
 
-        if(extras.async && extras.async.length){
-            _.asyncs = extras.async;
+        //check ref is exists and unique
+        var types;
+
+        if(file.isHtmlLike){
+            types = ['pagelet', 'widget', 'headJs', 'bottomJs', 'css', 'async'];
+        }else if(file.isJsLike){
+            types = ['deps', 'async'];
+        }else if(file.isCssLike){
+            types = ['deps'];
         }
 
+        types.forEach(function(type){
+            if(extras[type] && extras[type].length){
+                var links = [];
+
+                extras[type].forEach(function(url){
+                    var id = url.replace(/^\/+/, '');
+
+                    if(!uriMap[url] && !commonMap[id] && !ret.map.res[id] && !feather.util.isRemoteUrl(url)){
+                        feather.log.warn(file.id + ':[' + url + '] is not exists!');
+                        links.push(url);
+                    }else{
+                        links.push(uriMap[url] || id);
+                    }
+                });
+
+                _[type] = feather.util.unique(links);
+            }
+        });
+        //check end
+
+        if(_.async){
+            _.asyncs = _.async;
+            delete _.async;
+        }
+
+        //if is html, merge widget and pagelet to refs
+        if(file.isHtmlLike){
+            var refs = [];
+
+            if(_.widget){
+                refs = refs.concat(_.widget);
+                delete _.widget;
+            }
+
+            if(_.pagelet){
+                refs = refs.concat(_.pagelet);
+                delete _.pagelet;
+            }
+
+            if(refs.length){
+                _.refs = refs;
+            }
+        }
+
+        //add type
         if(file.isPagelet){
             _.isPagelet = true;
         }else if(file.isWidget){

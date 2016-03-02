@@ -17,13 +17,6 @@ module.exports = function(ret, conf, setting, opt){
         }
     });
 
-    //process start
-    var process = ['collect-resource'];
-
-    process.forEach(function(process){
-        require('./process/' + process + '.js')(ret, conf, setting, opt); 
-    });
-
     require('./map.js')(ret, conf, setting, opt);
 
     if(feather.config.get('project.modulename') == 'common'){
@@ -37,7 +30,7 @@ module.exports = function(ret, conf, setting, opt){
         feather.util.map(ret.src, function(subpath, file){
             content.map[file.id] = file.extras;
         });
-        
+
         feather.util.write(path, feather.util.json(content));
     }
 };
