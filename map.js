@@ -59,7 +59,7 @@ module.exports = function(ret){
                 var links = [];
 
                 extras[type].forEach(function(url){
-                    var id = url.replace(/^\/+/, '');
+                    var id = url.replace(/^\/([^\/]+)/, '$1');
 
                     if(!uriMap[url] && !commonMap[id] && !ret.map.res[id] && !feather.util.isRemoteUrl(url)){
                         feather.log.warn(file.id + ':[' + url + '] is not exists!');

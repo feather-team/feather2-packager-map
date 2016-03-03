@@ -1,15 +1,19 @@
 {
   "name": "feather2-packager-map",
   "version": "1.0.0",
-  "description": "",
+  "description": "feather2.0生成map策略，基于fis3扩展",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "jsyczhanghao@sina.com",
   "license": "ISC",
   "dependencies": {
     "fis3-packager-map": "^1.0.9",
     "uglifyjs": "^2.4.10"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/feather-team/feather2-packager-map.git"
   }
 }
