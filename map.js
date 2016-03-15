@@ -35,6 +35,16 @@ module.exports = function(ret){
                 if(has){
                     _.isPkg = true;
                     _.has = has;
+
+                    var notWraper = has.every(function(item){
+                        return ret.ids[item].useJsWraper === false;
+                    });
+
+                    if(notWraper){
+                        _.useJsWraper = false;
+                    }else{
+                        delete file.useJsWraper;
+                    }
                 }
             }
 
@@ -109,6 +119,10 @@ module.exports = function(ret){
 
         if(file.isJsLike){
             _.type = 'js';
+
+            if(file.useJsWraper === false){
+                _.useJsWraper = false;
+            }
         }else if(file.isCssLike){
             _.type = 'css';
         }

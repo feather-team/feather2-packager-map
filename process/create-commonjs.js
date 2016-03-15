@@ -7,6 +7,8 @@ module.exports = function(ret, conf, setting, opt){
             var file = feather.file.wrap(feather.project.getProjectPath() + '/static/' + item);
             var content = feather.util.read(__dirname + '/../vendor/lib/' + item);
 
+            delete file.useJsWraper;
+
             if(item == 'feather.js'){
                 var _config = 'require.mergeConfig(' + feather.util.json(feather.config.get('require.config')) + ')';
                 content += ';' + _config;
