@@ -29,7 +29,7 @@ function inArray(array, item){
     if(array.indexOf){
         return array.indexOf(item) > -1;
     }else{
-        for( var i = 0; i < array.length; i++){
+        for(var i = 0; i < array.length; i++){
             if(array[i] == item) return true;
         }
 
@@ -42,12 +42,20 @@ function isFunction(callback){
     return typeof callback == 'function';
 }
 
+function extend(target, obj){
+    for(var key in obj){
+        if(obj.hasOwnProperty[key]){
+            target[key] = obj[key];
+        }
+    }
+}
+
 //模块主类
 //modulename 模块名
 //callback 执行的函数
 //depth 依赖的js文件 ==> 可为数组
 function Module(modulename, callback, depth, use){
-    if(Module.cache[modulename]){
+    if(Module.get(modulename)){
         console && console.log('module ' + modulename + ' is exists!');
         return;
     }
@@ -61,9 +69,9 @@ function Module(modulename, callback, depth, use){
     //获取真实的依赖文件列表
     self.depths = Module.getDeps(depth);
     //所需要加载的依赖的模块数
-    self.needLoadDepth = self.depths.length;
+    self.needLoadCount = self.depths.length;
     //当模块所有依赖以及本身全部加载完后, 所通知的主模块列表
-    self.notices = (Module.noticesCache[modulename] || {}).notices || [];
+    self.notices = Module.noticesCache[modulename];
     //公开出的成员
     self.exports = {};
     //是否执行过，延迟执行的标志
@@ -80,24 +88,35 @@ Module.prototype = {
         //当模块类被实例话后表示该模块本身的js已经被成功加载 删除loading表中自身所对应的js
         Module.cache[self.modulename] = self;
         //如果没有依赖 直接complete
-        self.needLoadDepth ? self.loadDepths() : self.complete();
+        self.needLoadCount ? self.loadDepths() : self.complete();
     },
 
-    //加载依赖
     loadDepths: function(){
-        var self = this;
+        var self = this, needLoadDepths = [];
 
         self.status = Module.loadStatus.LOADDEPTH;
+        
+        each(self.depths, function(depth){
+            var module, notices;
 
-        each(self.depths, function(modulename){
-            Module.load(modulename, self.modulename);
+            if(module = Module.get(depth)){
+                return module.noticeModule(self);
+            }
+
+            if(notices = Module.noticesCache[depth]){
+                return notices.push(notice);
+            }
+
+            needLoadDepths.push(depth);
         });
+
+        needLoadDepths.length && Module.load(needLoadDepths);
     },
 
     //接受通知
     //此处当依赖本模块的模块加载完后 会执行
     receiveNotice: function(){
-        if(!--this.needLoadDepth) {
+        if(!--this.needLoadCount) {
             this.complete();
         }
     },
@@ -114,11 +133,11 @@ Module.prototype = {
             }
 
             //通知所依赖本模块的模块
-            Module.cache[notice].receiveNotice();
+            notice.receiveNotice();
         }else{ 
             //通知所有模块
-            each(self.notices, function(item){
-                Module.cache[item].receiveNotice();
+            each(self.notices, function(notice){
+                notice.receiveNotice();
             });
 
             self.notices.length = 0;
@@ -162,21 +181,14 @@ Module.cache = {};      //当模块的js文件加载完后 会存放在此处 �
 Module.noticesCache = {};       //缓存每个模块所需要通知被依赖模块的实例
 Module.loadingSource = {};  //正在加载中的资源  
 Module.loadedSource = {};   //已经加载的资源   
-Module.mapSource = {};  
+Module.mapSource = {};  //url与模块对应表
+
+Module.get = function(name){
+    return Module.cache[name];
+};
 
 //加载一个模块的js文件
-Module.load = function(modulename, notice){
-    var cache, module;
-
-    //如果该路径已经加载，则表示模块已经初始化，通知依赖本模块的模块即可
-    if(cache = Module.cache[modulename]) return cache.noticeModule(notice);
-
-    //如果该路径没有初始化，即没有new，也就是没有加载完毕，则缓存通知模块
-    if(module = Module.noticesCache[modulename]) return module.notices.push(notice);
-
-    //如果没有缓存，则创建
-    Module.noticesCache[modulename] = {notices: [notice]};
-
+Module.load = function(depths){
     //获取该模块的全路径
     var realpath = Module.getRealPath(modulename), map;
 
@@ -201,7 +213,7 @@ Module._load = function(realpath, modulename){
     Module.loadingSource[realpath] = 1;
 
     var  
-    isCss = /\.css$/.test(modulename),
+    isCss = /\.(?:css|less)$/.test(modulename),
     isLoaded = 0,
     isOldWebKit = +navigator.userAgent.replace(/.*(?:Apple|Android)WebKit\/(\d+).*/, "$1") < 536,
     type = isCss ? 'link' : 'script',
@@ -344,13 +356,13 @@ require.config = {
 
 require.async = function(paths, callback){
     new Module('_r_' + requireid++, function(){
-        var depthmodules = [];
+        var modules = [];
 
         each(makeArray(paths), function(path){
-            depthmodules.push(Module.require(path));
+            modules.push(Module.require(path));
         });
 
-        isFunction(callback) && callback.apply(window, depthmodules);
+        isFunction(callback) && callback.apply(window, modules);
     }, paths, true);
 };
 
