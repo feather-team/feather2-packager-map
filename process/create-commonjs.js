@@ -4,20 +4,23 @@ module.exports = function(ret, conf, setting, opt){
 
     if(!modulename || modulename == 'common'){
         ['feather.js', 'pagelet.js'].forEach(function(item){
+            var content = feather.util.read(__dirname + '/../vendor/lib/' + item, true);
             var file = feather.file.wrap(feather.project.getProjectPath() + '/static/' + item);
-            var content = feather.util.read(__dirname + '/../vendor/lib/' + item);
-
-            delete file.useJsWraper;
 
             if(item == 'feather.js'){
+                if(feather.config.get('combo.level') > -1){
+                    content = feather.util.read(__dirname + '/../vendor/lib/feather-combo.js');
+                }
+
                 var _config = 'require.mergeConfig(' + feather.util.json(feather.config.get('require.config')) + ')';
                 content += ';' + _config;
+                delete file.useJsWraper;
             }
 
             if(isPd){
                 content = require('uglify-js').minify(content, {fromString: true}).code;
             }
-
+            
             file.setContent(content);
             ret.pkg[file.subpath] = file;
             ret.map.res[file.id] = {

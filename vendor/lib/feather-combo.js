@@ -37,9 +37,35 @@ function inArray(array, item){
     }
 }
 
+function unique(array){
+    var obj = {}, ret = [];
+
+    each(array, function(v){
+        if(obj[v]) return;
+
+        obj[v] = true;
+        ret.push(v);
+    });
+
+    return ret;
+}
+
 //是否函数
 function isFunction(callback){
     return typeof callback == 'function';
+}
+
+function dirname(path, onlyDomain){
+    var reg, match;
+
+    if(onlyDomain){
+        reg = /^(?:https?\:)?\/\/[^\/]+\//;
+    }else{
+        reg = /.+\/(?=[^\/]+\.[^\.]+?(?:\?|$))/;
+    }
+
+    match = path.match(reg);
+    return match ? match[0] : '/';
 }
 
 //模块主类
@@ -179,11 +205,13 @@ Module.mapSource = {};  //url与模块对应表
 
 //加载一个模块的js文件
 Module.load = function(depths){
-    var CSSEXP = /\.(?:css|less)(?:\?|$)/;
+    var CSSEXP = /\.(?:css|less)(?:\?|$)/, needCombos = {'css': [], 'js': []}, resources = {}, config = require.config;
+    var comboLevel = config.combo.level, comboCssOnlySameBase = config.combo.cssOnlySameBase, comboMaxUrlLength = config.combo.maxUrlLength;
+    var maps = config.map, deps = config.deps;
 
     each(depths, function(modulename){
         //获取该模块的url
-        var url = Module.getUrl(modulename);
+        var url = Module.getUrl(modulename), map;
 
         //模块有可能被合并至一个大文件中，即一个文件中可能包含多个模块，或者非模块。
         if(!Module.mapSource[url]){
@@ -200,7 +228,75 @@ Module.load = function(depths){
         if(!Module.loadingSource[url]){
             Module.loadingSource[url] = 1;
 
-            Module._load(url, CSSEXP.test(url), function(){
+            if(maps[url] && deps[modulename]){
+                if(comboLevel == 0 && maps[url].length == 1 || comboLevel > 0){
+                    if(CSSEXP.test(url)){
+                        needCombos.css.push(url);
+                    }else{
+                        needCombos.js.push(url);
+                    }
+                }else{
+                    resources[url] = url;
+                }
+            }else{
+                resources[url] = url;
+            }
+        }
+    });
+
+    each(needCombos, function(combos, type){
+        var combosDirGroup = {};
+
+        each(combos, function(url){
+            var dir = dirname(url, !(type == 'css' && comboCssOnlySameBase));
+            
+            if(!combosDirGroup[dir]){
+                combosDirGroup[dir] = [url];
+            }else{
+                combosDirGroup[dir].push(url);
+            }
+        });
+
+        each(combosDirGroup, function(urls, dir){
+            urls = unique(urls);
+
+            if(urls.length > 1){
+                var items = [], tUrls = [], dirLength = dir.length, len = 0;
+
+                each(urls, function(url){
+                    len += url.length - dirLength;
+
+                    var part = parseInt(len / comboMaxUrlLength);
+
+                    if(!items[part]){
+                        items[part] = [];
+                        tUrls[part] = [];
+                    }
+
+                    items[part].push(url.substring(dirLength));
+                    tUrls[part].push(url);
+                });
+
+                each(items, function(item, key){
+                    var realUrl;
+
+                    if(item.length > 1){
+                        realUrl = dir + '??' + item.join(',');
+                    }else{
+                        realUrl = tUrls[key][0];
+                    }
+
+                    resources[realUrl] = tUrls[key];
+                });
+            }else{
+                resources[urls[0]] = urls;
+            }
+        });
+    });
+
+    each(resources, function(urls, realUrl){
+        Module._load(realUrl, CSSEXP.test(realUrl), function(){
+            each(makeArray(urls), function(url){
                 Module.loadedSource[url] = 1;
                 //手动触发已加载方法，防止文件是非模块，require.async之类，导致无法通知依赖模块执行，也有可能是多个文件合并，需要挨个通知
                 each(Module.mapSource[url], function(modulename){
@@ -208,8 +304,8 @@ Module.load = function(depths){
                 });
                 
                 Module.mapSource[url].length = 0;
-            });
-        }
+            })
+        });
     });
 };
 
@@ -330,8 +426,6 @@ var requireid = 0;
 //require, 可直接获取已加载完的模块
 require = Module.require;
 
-require.version = '1.0.4';
-
 require.config = {
     domain: '',
     baseurl: '',
@@ -339,7 +433,12 @@ require.config = {
     charset: 'utf-8',
     deps: {},
     map: {},
-    attrs: {}
+    attrs: {},
+    combo: {
+        level: -1,
+        maxUrlLength: 2000,
+        cssOnlySameBase: false
+    }
 };
 
 require.async = function(paths, callback){
