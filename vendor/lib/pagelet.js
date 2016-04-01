@@ -119,11 +119,11 @@
 
 		var parent = dom.parentNode;
 
-		// if(parent.getAttribute('data-pagelet-temp-container')){
-		// 	parent.parentNode.removeChild(parent);
-		// }else{
-		// 	dom.parentNode.removeChild(dom);
-		// }
+		if(parent.getAttribute('data-pagelet-temp-container')){
+			parent.parentNode.removeChild(parent);
+		}else{
+			dom.parentNode.removeChild(dom);
+		}
 	}
 
 	define('static/pagelet.js', function(){
