@@ -1,404 +1,425 @@
-var require, define;
+;var require, define;
 
 (function(window, document, undefined){
-//判断是否为数组
-function isArray(array){
-    return Object.prototype.toString.call(array) == '[object Array]';
-}
+var Helper = {
+    is: function(o, type){
+        return Object.prototype.toString.call(o) == '[object ' + type + ']';
+    },
 
-//转换数组
-function makeArray(array){
-    return array ? isArray(array) ? array : [array] : [];
-}
+    makeArray: function(arr){
+        return arr ? Helper.is(arr, 'Array') ? arr : [arr] : [];
+    },
 
-//简单迭代数组
-function each(obj, callback){
-    if(isArray(obj)){
-        for(var i = 0; i < obj.length; i++)
-            callback(obj[i], i);
-    }else{
-        for(var i in obj)
-            callback(obj[i], i);
-    }
-}
-
-//查找元素是否在数组中
-function inArray(array, item){
-    array = makeArray(array);
-
-    if(array.indexOf){
-        return array.indexOf(item) > -1;
-    }else{
-        for(var i = 0; i < array.length; i++){
-            if(array[i] == item) return true;
+    each: function(o, callback){
+        if(Helper.is(o, 'Array')){
+            for(var i = 0; i < o.length; i++)
+                callback(o[i], i);
+        }else{
+            for(var i in o)
+                callback(o[i], i);
         }
+    },
 
-        return false;
+    inArray: function(arr, item){
+        arr = Helper.makeArray(arr);
+
+        if(!arr.length) return false;
+
+        if(arr.indexOf){
+            return arr.indexOf(item) > -1;
+        }else{
+            for(var i = 0; i < arr.length; i++){
+                if(arr[i] == item) return true;
+            }
+
+            return false;
+        }
+    },
+
+    log: function(){
+        console && console.log.apply(console, arguments);
+    },
+
+    extend: function(sub, sup){
+        Helper.each(sup, function(item, key){
+            sub[key] = item;
+        });
+
+        return sub;
     }
-}
+};
 
-//是否函数
-function isFunction(callback){
-    return typeof callback == 'function';
-}
+function Module(name, callback, deps, isUse){
+    var store = Module.stores[name] || {};
 
-//模块主类
-//modulename 模块名
-//callback 执行的函数
-//depth 依赖的js文件 ==> 可为数组
-function Module(modulename, callback, depth, use){
-    if(Module.cache[modulename]){
-        console && console.log('module ' + modulename + ' is exists!');
+    if(store.exports){
+        Helper.log('module ' + name + ' is exists!');
         return;
     }
 
-    var self = this;
+    var self = Module.stores[name] = this;
 
-    //模块名
-    self.modulename = modulename;
-    //回调
+    self.name = name;
     self.callback = callback;
-    //获取真实的依赖文件列表
-    self.depths = Module.getDeps(depth);
-    //所需要加载的依赖的模块数
-    self.needLoadCount = self.depths.length;
-    //当模块所有依赖以及本身全部加载完后, 所通知的主模块列表
-    self.notices = Module.noticesCache[modulename] || [];
-    //公开出的成员
+    self.deps = Helper.makeArray(deps);
+    self.needLoadDepsCount = self.deps.length;
+    self.needNotices = Helper.makeArray(store.notices);
     self.exports = {};
-    //是否执行过，延迟执行的标志
-    self.execed = false;
-    //是否是require.async
-    self.use = use;
-    self.init();
+    self.url = store.url;
+    self.isUse = isUse;
+    self.status = Module.STATUS.INITIALIZED;
+
+    self.initialize();
 }
 
 Module.prototype = {
-    init: function(){
+    initialize: function(){
         var self = this;
 
-        //当模块类被实例话后表示该模块本身的js已经被成功加载 删除loading表中自身所对应的js
-        Module.cache[self.modulename] = self;
-        //如果没有依赖 直接complete
-        self.needLoadCount ? self.loadDepths() : self.complete();
-    },
+        if(self.deps.length){
+            var needLoads = self.analyseNeedLoadDeps();
 
-    loadDepths: function(){
-        var self = this, needLoadDepths = [];
-
-        self.status = Module.loadStatus.LOADDEPTH;
-        
-        each(self.depths, function(depth){
-            var module, notices;
-
-            if(module = Module.cache[depth]){
-                return module.noticeModule(self);
+            if(needLoads.length){
+                self.status = Module.STATUS.DEPSLOADING;
+                Module.loadDeps(needLoads);
             }
-
-            if(!Module.noticesCache[depth]){
-                Module.noticesCache[depth] = [self];
-            }else{
-                return Module.noticesCache[depth].push(self);
-            }
-
-            needLoadDepths.push(depth);
-        });
-
-        needLoadDepths.length && Module.load(needLoadDepths);
-    },
-
-    //接受通知
-    //此处当依赖本模块的模块加载完后 会执行
-    receiveNotice: function(){
-        if(!--this.needLoadCount) {
-            this.complete();
+        }else{
+            self.complete();
         }
     },
 
-    //当本身加载完后 通知所依赖本模块的模块
-    noticeModule: function(notice){
+    analyseNeedLoadDeps: function(){
+        var self = this, needLoads = [];
+
+        Helper.each(self.deps, function(name){
+            var store = Module.stores[name];
+
+            if(store){
+                if(store.status > Module.STATUS.LOADED){
+                    return store.notice(self);
+                }else{
+                    return store.notices.push(self);
+                }
+            }else{
+                store = Module.stores[name] = {
+                    name: name,
+                    notices: [self],
+                    status: Module.STATUS.UNDEFINED
+                };
+
+                needLoads.push(store);
+            }
+        });
+
+        return needLoads;
+    },
+
+    receiveNotice: function(){
+        !--this.needLoadDepsCount && this.complete();
+    },
+
+    notice: function(module){
         var self = this;
 
         //手动通知某个模块
-        if(notice){
+        if(module){
             //如果该模块自己的依赖还没加载完，将需要通知的模块添加至通知队列
-            if(self.status != Module.loadStatus.LOADED){
-                return self.notices.push(notice);
+            if(self.status < Module.STATUS.COMPLETED){
+                return self.needNotices.push(module);
             }
 
             //通知所依赖本模块的模块
-            notice.receiveNotice();
+            module.receiveNotice();
         }else{ 
             //通知所有模块
-            each(self.notices, function(notice){
-                notice.receiveNotice();
+            Helper.each(self.needNotices, function(module){
+                module.receiveNotice();
             });
 
-            self.notices.length = 0;
+            self.needNotices.length = 0;
         }
     },
 
-    //完成所有依赖加载后 执行回调
     complete: function(){
         var self = this;
 
-        self.status = Module.loadStatus.LOADED;
+        self.status = Module.STATUS.COMPLETED;
         //如果是require.async 立即执行
-        self.use && self.exec();
-        self.noticeModule();
+        self.isUse && self.execute();
+        self.notice();
     },
 
-    exec: function(){
+    execute: function(){
         var self = this;
 
-        if(self.execed) return;
+        if(self.status != Module.STATUS.EXECUTED){
+            self.status = Module.STATUS.EXECUTED;
 
-        self.execed = true;
+            var callback = self.callback;
 
-        if(isFunction(self.callback)){
-            var exports;
+            if(Helper.is(callback, 'Function')){
+                var exports;
 
-            if(exports = self.callback.call(window, Module.require, self.exports, self)){
-                self.exports = exports;
+                if(exports = self.callback.call(window, Module.require, self.exports, self)){
+                    self.exports = exports;
+                }
+            }else if(Helper.is(callback, 'Object')){
+                self.exports = callback;
             }
         }
+
+        return self.exports;
     }
 };
 
-//模块的加载状态
-Module.loadStatus = {
-    LOADDEPTH: 1,   //正在努力加载依赖文件
-    LOADED: 2       //已全部加载完毕
+Helper.extend(Module, {
+    STATUS: {
+        UNDEFINED: 0,
+        LOADING: 1,
+        LOADED: 2,
+        INITIALIZED: 3,
+        DEPSLOADING: 4,
+        COMPLETED: 5,
+        EXECUTED: 6
+    },
+
+    stores: {},
+    urlStores: {},
+
+    getUrlStore: function(url){
+        var urlStore = Module.urlStores[url];
+
+        if(!urlStore){
+            urlStore = Module.urlStores[url] = {
+                modules: [],
+                status: Module.STATUS.UNDEFINED,
+                url: url
+            };
+        }
+
+        return urlStore;
+    }
+});
+
+Module.analyseNeedLoadUrls = function(deps){
+    var needLoads = [];
+
+    Helper.each(deps, function(store){
+        var realUrl = require.getRealUrl(store.name), urlStore = Module.getUrlStore(realUrl), urlStatus = urlStore.status;
+
+        store.url = realUrl;
+
+        if(urlStatus == Module.STATUS.LOADED){
+            return Module.init(store.name);
+        }
+
+        urlStore.modules.push(store.name);
+
+        if(urlStatus == Module.STATUS.UNDEFINED){
+            needLoads.push(urlStore);
+        }
+    });
+
+    return needLoads;
 };
 
-Module.cache = {};      //当模块的js文件加载完后 会存放在此处 不管依赖是否加载完  这里是存放实例module
-Module.noticesCache = {};       //缓存每个模块所需要通知被依赖模块的实例
-Module.loadingSource = {};  //正在加载中的资源  
-Module.loadedSource = {};   //已经加载的资源   
-Module.mapSource = {};  //url与模块对应表
+Module.loadDeps = function(deps){
+    Helper.each(Module.analyseNeedLoadUrls(deps), function(urlStore){
+        urlStore.status = Module.STATUS.LOADING;
 
-//加载一个模块的js文件
-Module.load = function(depths){
-    var CSSEXP = /\.(?:css|less)(?:\?|$)/;
+        Module.load(urlStore.url, function(){
+            urlStore.status = Module.STATUS.LOADED;
 
-    each(depths, function(modulename){
-        //获取该模块的url
-        var url = Module.getUrl(modulename);
-
-        //模块有可能被合并至一个大文件中，即一个文件中可能包含多个模块，或者非模块。
-        if(!Module.mapSource[url]){
-            Module.mapSource[url] = [modulename];
-        }else{
-            Module.mapSource[url].push(modulename);
-        }
-
-        if(Module.loadedSource[url]){//如果加载完毕，尝试初始化
-            Module.init(modulename);
-            return;
-        }
-
-        if(!Module.loadingSource[url]){
-            Module.loadingSource[url] = 1;
-
-            Module._load(url, CSSEXP.test(url), function(){
-                Module.loadedSource[url] = 1;
-                //手动触发已加载方法，防止文件是非模块，require.async之类，导致无法通知依赖模块执行，也有可能是多个文件合并，需要挨个通知
-                each(Module.mapSource[url], function(modulename){
-                    Module.init(modulename);
-                });
-                
-                Module.mapSource[url].length = 0;
+            Helper.each(urlStore.modules, function(module){
+                Module.init(module);
             });
-        }
+            
+            urlStore.modules.length = 0;
+        });
     });
 };
 
-Module._load = function(url, isCss, callback){
-    var  
-    isLoaded = 0,
-    isOldWebKit = +navigator.userAgent.replace(/.*(?:Apple|Android)WebKit\/(\d+).*/, "$1") < 536,
-    type = isCss ? 'link' : 'script',
-    source = document.createElement(type),
-    supportOnload = 'onload' in source;
+Module.createElement = function(url){
+    var isCss = /\.(?:css|less)(?:\?|$)/.test(url), type = isCss ? 'link' : 'script';
+    
+    var element = document.createElement(type);
+    element.charset = Module.require.config('charset');
 
     //支持css加载
     if(isCss){
-        source.rel = 'stylesheet';
-        source.type = 'text/css';
-        source.href = url;
+        element.rel = 'stylesheet';
+        element.type = 'text/css';
+        element.href = url;
     }else{
-        source.type = 'text/javascript';
-        source.src = url;
+        element.type = 'text/javascript';
+        element.src = url;
     }
 
-    each(require.config.attrs || {}, function(v, k){
-        if(isFunction(v)){
-            v = v({
-                type: type,
-                url: url
-            });
-        }
+    return element;
+};
 
-        v !== undefined && source.setAttribute(k, v);
-    });
+Module.load = function(url, callback){
+    var element = Module.createElement(url);
+
+    var  
+    isLoaded = false,
+    isCss = element.tagName.toLowerCase() == 'link',
+    isOldWebKit = +navigator.userAgent.replace(/.*(?:Apple|Android)WebKit\/(\d+).*/, "$1") < 536,
+    supportOnload = 'onload' in element;
 
     function onload(){
         //这边放置css中存在@import  import后会多次触发onload事件
         if(isLoaded) return;
 
-        if(!source.readyState || /loaded|complete/.test(source.readyState)){
-            source.onload = source.onerror = source.onreadystatechange = null;
+        if(!element.readyState || /loaded|complete/.test(element.readyState)){
+            element.onload = element.onerror = element.onreadystatechange = null;
+
+            if(!isCss){
+                element.parentNode.removeChild(element);
+                element = null;
+            }
+
             //已加载
             isLoaded = true;
             callback();
         }
     }
 
-    source.onload = source.onerror = source.onreadystatechange = onload;
-    source.charset = require.config.charset;
-    document.getElementsByTagName('head')[0].appendChild(source);
+    element.onload = element.onerror = element.onreadystatechange = onload;
+    document.getElementsByTagName('head')[0].appendChild(element);
 
     //有些老版本浏览器不支持对css的onload事件，需检查css的sheet属性是否存在，如果加载完后，此属性会出现
     if(isCss && (isOldWebKit || !supportOnload)){
         var id = setTimeout(function(){
-            if(source.sheet){
+            if(element.sheet){
                 clearTimeout(id);
                 return onload();
             }
 
-            setTimeout(arguments.callee);
-        });
+            setTimeout(arguments.callee, 50);
+        }, 50);
     }
 };
 
 //尝试初始化
-Module.init = function(modulename){
-    !Module.cache[modulename] && new Module(modulename);
+Module.init = function(name){
+    Module.stores[name].status < Module.STATUS.INITIALIZED && new Module(name);
 };
 
-//require
-Module.require = function(modulename){
-    var cache = Module.cache[Module.getModuleName(modulename)];
-    cache.exec();
-    return cache.exports;
-};
+require = Module.require = function(name){
+    var store = Module.stores[name];
 
-//或者模块真实的路径
-Module.getModuleName = function(path){
-    if(/:\/\//.test(path)) return path;
-
-    var config = require.config, baseurl = config.baseurl || '';
-
-    each(config.rules || [], function(item){
-        path = path.replace(item[0], item[1]);
-    }); 
-
-    if(baseurl && path.charAt(0) != '/') path = baseurl.replace(/\/+$/, '') + '/' + path;
-
-    return path.replace(/\/+/g, '/');
-};
-
-//获取全路径
-Module.getUrl = function(path){
-    var config = require.config, map = config.map || {}, domain = config.domain || '';
-
-    for(var i in map){
-        if(map.hasOwnProperty(i) && inArray(map[i], path)){
-            path = i; break;
-        }
+    if(!store.exports){
+        throw new Error(name + ' [' + realname + ']\' not found!');
     }
-    
-    return !/^(?:https?\:)?\/\//.test(path) ? domain + path : path;
+
+    return store.execute();
 };
 
-//获取依赖
-Module.getDeps = function(deps){
-    var d = [];
-
-    each(makeArray(deps), function(dep){
-        dep = Module.getModuleName(dep);
-        d.push(dep);
-        d.push.apply(d, Module.getDeps(require.config.deps[dep]));
-    });
-
-    return d;
-};
-
-
-var requireid = 0;
-
-//require, 可直接获取已加载完的模块
-require = Module.require;
-
-require.version = '1.0.4';
-
-require.config = {
+var rid = 0, config = {
     domain: '',
     baseurl: '',
     rules: [],
     charset: 'utf-8',
-    deps: {},
-    map: {},
-    attrs: {}
+    map: {}
 };
 
-require.async = function(paths, callback){
-    new Module('_r_' + requireid++, function(){
-        var modules = [];
+var rid = 0;
 
-        each(makeArray(paths), function(path){
-            modules.push(Module.require(path));
-        });
+Helper.extend(require, {
+    Helper: Helper,
 
-        isFunction(callback) && callback.apply(window, modules);
-    }, paths, true);
-};
+    version: '2.0.0',
 
-require.mergeConfig = function(config){
-    var _config = require.config;
+    load: Module.load,
 
-    each(config, function(c, i){
-        var tmp = _config[i];
-
-        if(i == 'map'){
-            each(c, function(map, name){
-                var yMap = tmp[name];
-
-                if(!yMap){
-                    yMap = map;
-                }else{
-                    each(makeArray(map), function(item){
-                        !inArray(yMap, item) && yMap.push(item);
+    config: function(name, value){
+        if(Helper.is(name, 'Object')){
+            Helper.each(name, function(v, k){
+                require.config(k, v);
+            });
+        }else if(value !== undefined){
+            if(name == 'map'){
+                Helper.each(value, function(mods, url){
+                    var map = config.map[url] || [];
+                    
+                    Helper.each(Helper.makeArray(mods), function(mod){
+                        map.push(require.getRealModuleName(mod));
                     });
-                }
 
-                tmp[name] = yMap;
-            });
-        }else if(i == 'deps'){
-            each(c, function(dep, name){
-                tmp[name] = dep;
-            });
-        }else if(isArray(c)){
-            tmp.push.apply(tmp, c);
+                    config.map[url] = map;
+                });
+            }else if(Helper.is(config[name], 'Object')){
+                config[name] = Helper.extend(config[name] || {}, value);
+            }else{
+                config[name] = value;
+            }
         }else{
-            tmp = c;
+            return config[name];
         }
+    },
 
-        _config[i] = tmp;
-    });
-};
+    async: function(deps, callback){
+        deps = require.getRealModuleName(deps);
 
-//define方法
-define = function(modulename, callback, depth){
-    if(isFunction(depth)){
-        var s = callback;
-        callback = depth;
-        depth = s;
+        new Module('_r_' + rid++, function(){   
+            var modules = [];
+
+            Helper.each(Helper.makeArray(deps), function(dep){
+                modules.push(require(dep));
+            });
+
+            Helper.is(callback, 'Function') && callback.apply(window, modules);
+        }, deps, true);
+    },
+
+    getRealModuleName: function(name){
+        if(Helper.is(name, 'Array')){
+            Helper.each(name, function(v, k){
+                name[k] = require.getRealModuleName(v);
+            });
+
+            return name;
+        }else{
+            if(/:\/\//.test(name)) return name;
+
+            var baseurl = config.baseurl || '';
+
+            Helper.each(config.rules || [], function(item){
+                name = name.replace(item[0], item[1]);
+            }); 
+
+            if(baseurl && name.charAt(0) != '/') name = baseurl.replace(/\/+$/, '') + '/' + name;
+
+            return name.replace(/\/+/g, '/');
+        }
+    },
+
+    getRealUrl: function(name){
+        var map = config.map || {}, domain = config.domain || '';
+
+        for(var i in map){
+            if(map.hasOwnProperty(i) && Helper.inArray(map[i], name)){
+                name = i; break;
+            }
+        }
+        
+        return !/^(?:https?\:)?\/\//.test(name) ? domain + name : name;
     }
-    
-    modulename = Module.getModuleName(modulename);
-    depth = depth || require.config.deps[modulename];
+});
 
-    new Module(modulename, callback, depth);
+define = function(name, callback, deps){
+    if(Helper.is(deps, 'Function')){
+        var s = callback;
+        callback = deps;
+        deps = s;
+    }
+
+    deps = require.getRealModuleName(deps);
+    name = require.getRealModuleName(name);
+
+    new Module(name, callback, deps);
 };
+
+define.Module = Module;
 })(window, document);

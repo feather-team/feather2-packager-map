@@ -76,7 +76,7 @@
 
 		if(/\?/.test(url)){
 			url += '&' + params;
-		}else{
+		}else if(params){
 			url += '?' + params;
 		}
 
