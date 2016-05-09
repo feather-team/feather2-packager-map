@@ -307,10 +307,11 @@ Module.init = function(name){
 };
 
 require = Module.require = function(name){
-    var store = Module.stores[name];
+    var realname = Module.getRealModuleName(name);
+    var store = Module.stores[realname];
 
     if(!store.exports){
-        throw new Error(name + ' [' + realname + ']\' not found!');
+        throw new Error('module [' + realname + ']\' not found!');
     }
 
     return store.execute();
