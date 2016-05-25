@@ -8,21 +8,21 @@ module.exports = function(ret, conf, setting, opt){
             var file = feather.file.wrap(feather.project.getProjectPath() + '/static/' + item);
 
             if(item == 'feather.js'){
-                if(feather.config.get('combo'))
+                
 
-                feather.config.set('require.config.combo', {
-                    onlyUnPackFile: feather.config.get('combo.onlyUnPackFile'),
-                    maxUrlLength: feather.config.get('combo.maxUrlLength'),
-                    cssOnlySameBase: feather.config.get('cssA2R')
-                });
+                if(feather.config.get('combo.use')){
+                    feather.config.set('require.config.combo', {
+                        onlyUnPackFile: feather.config.get('combo.onlyUnPackFile'),
+                        maxUrlLength: feather.config.get('combo.maxUrlLength'),
+                        cssOnlySameBase: feather.config.get('cssA2R')
+                    });
+
+                    content += ';' + feather.util.read(__dirname + '/../vendor/lib/feather-combo.js', true);
+                }
 
                 var _config = 'require.config(' + feather.util.json(feather.config.get('require.config')) + ')';
                 content += ';' + _config;
                 content += ';' + feather.util.read(__dirname + '/../vendor/lib/feather-deps.js', true);
-
-                if(feather.config.get('combo.level') > -1){
-                    content += ';' + feather.util.read(__dirname + '/../vendor/lib/feather-combo.js', true);
-                }
 
                 delete file.useJsWraper;
             }

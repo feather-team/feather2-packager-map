@@ -3,11 +3,6 @@
 var fis3map = require('fis3-packager-map');
 
 module.exports = function(ret, conf, setting, opt){
-    ret.start = Date.now();
-    // feather.util.map(ret.src, function(subpath, file){
-    //     console.log(subpath, file._fromCache);
-    // });
-
     //first, call fis3's map
     fis3map(ret, conf, setting, opt);
 

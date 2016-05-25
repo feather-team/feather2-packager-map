@@ -34,12 +34,12 @@ define.Module.analyseNeedLoadUrls = function(deps){
 
     var CSSEXP = /\.(?:css|less)(?:\?|$)/, needCombos = {'css': [], 'js': []}, finalNeedLoadUrlStores = [];
     var combo = require.config('combo') || {}, maps = require.config('map');
-    var comboLevel = combo.level, comboCssOnlySameBase = combo.cssOnlySameBase, comboMaxUrlLength = combo.maxUrlLength;
+    var onlyUnPackFile = combo.onlyUnPackFile, comboCssOnlySameBase = combo.cssOnlySameBase, comboMaxUrlLength = combo.maxUrlLength;
 
     Helper.each(needLoadUrlStores, function(urlStore){
         var url = urlStore.url;
 
-        if(maps[url] && (comboLevel == 0 && maps[url].length == 1 || comboLevel > 0)){
+        if(maps[url] && (onlyUnPackFile && maps[url].length == 1 || !onlyUnPackFile)){
             if(CSSEXP.test(url)){
                 needCombos.css.push(urlStore);
             }else{
@@ -55,20 +55,6 @@ define.Module.analyseNeedLoadUrls = function(deps){
 
         Helper.each(combos, function(urlStore){
             var url = urlStore.url, dir = dirname(url, !(type == 'css' && comboCssOnlySameBase));
-            
-            // if(!combosDirGroup[dir]){
-            //     combosDirGroup[dir] = {c: [], w: [], p: []};
-            // }
-
-            // var mod = mods[urlStore.modules[0]];
-
-            // if(mod.type == 'c'){
-            //     combosDirGroup[dir].c.push(url);
-            // }else if(mod.type == 'w'){
-            //     combosDirGroup[dir].w.push(url);
-            // }else{
-            //     combosDirGroup[dir].p.push(url);
-            // }
 
             if(!combosDirGroup[dir]){
                 combosDirGroup[dir] = [];
@@ -78,47 +64,45 @@ define.Module.analyseNeedLoadUrls = function(deps){
         });
 
         Helper.each(combosDirGroup, function(urls, dir){
-            //Helper.each(typeUrls, function(urls, type){
-                urls = unique(urls);
+            urls = unique(urls);
 
-                if(urls.length > 1){
-                    var items = [], tUrlStoreModules = [], dirLength = dir.length, len = 0;
+            if(urls.length > 1){
+                var items = [], tUrlStoreModules = [], dirLength = dir.length, len = 0;
 
-                    Helper.each(urls, function(url){
-                        len += url.length - dirLength;
+                Helper.each(urls, function(url){
+                    len += url.length - dirLength;
 
-                        var part = parseInt(len / comboMaxUrlLength);
+                    var part = parseInt(len / comboMaxUrlLength);
 
-                        if(!items[part]){
-                            items[part] = [];
-                            tUrlStoreModules[part] = [];
-                        }
+                    if(!items[part]){
+                        items[part] = [];
+                        tUrlStoreModules[part] = [];
+                    }
 
-                        items[part].push(url.substring(dirLength));
-                        tUrlStoreModules[part].push(define.Module.getUrlStore(url).modules);
+                    items[part].push(url.substring(dirLength));
+                    tUrlStoreModules[part].push(define.Module.getUrlStore(url).modules);
+                });
+
+                Helper.each(items, function(item, key){
+                    var realUrl;
+
+                    if(item.length > 1){
+                        realUrl = dir + '??' + item.join(',');
+                    }else{
+                        realUrl = tUrls[key][0];
+                    }
+
+                    var comboUrlStore = define.Module.getUrlStore(realUrl);
+                    
+                    Helper.each(tUrlStoreModules, function(modules){
+                        comboUrlStore.modules = comboUrlStore.modules.concat(modules);
                     });
 
-                    Helper.each(items, function(item, key){
-                        var realUrl;
-
-                        if(item.length > 1){
-                            realUrl = dir + '??' + item.join(',');
-                        }else{
-                            realUrl = tUrls[key][0];
-                        }
-
-                        var comboUrlStore = define.Module.getUrlStore(realUrl);
-                        
-                        Helper.each(tUrlStoreModules, function(modules){
-                            comboUrlStore.modules = comboUrlStore.modules.concat(modules);
-                        });
-
-                        finalNeedLoadUrlStores.push(comboUrlStore);
-                    });
-                }else if(urls.length == 1){
-                    finalNeedLoadUrlStores.push(define.Module.getUrlStore(urls[0]));
-                }
-            //});   
+                    finalNeedLoadUrlStores.push(comboUrlStore);
+                });
+            }else if(urls.length == 1){
+                finalNeedLoadUrlStores.push(define.Module.getUrlStore(urls[0]));
+            }
         });
     });
 

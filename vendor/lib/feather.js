@@ -307,7 +307,7 @@ Module.init = function(name){
 };
 
 require = Module.require = function(name){
-    var realname = Module.getRealModuleName(name);
+    var realname = require.getRealModuleName(name);
     var store = Module.stores[realname];
 
     if(!store.exports){
@@ -324,8 +324,6 @@ var rid = 0, config = {
     charset: 'utf-8',
     map: {}
 };
-
-var rid = 0;
 
 Helper.extend(require, {
     Helper: Helper,
