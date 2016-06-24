@@ -25,19 +25,19 @@ module.exports = function(ret, conf, setting, opt){
     if(modulename == 'common' || !modulename){
         var content = {
             config: feather.config.get(),
-            components: feather.commonInfo.components,
+            components: feather.releaseInfo.components,
             map: {},
-            moduleInfo: {}
+            modules: {}
         };
 
         feather.util.map(ret.src, function(subpath, file){
             content.map[file.id] = file.extras;
         });
     }else{
-        var content = feather.commonInfo;
+        var content = feather.releaseInfo;
     }
-
-    content.moduleInfo[modulename] = {
+    
+    content.modules[modulename] = {
         modifyTime: Date.now()
     };
 

@@ -13,7 +13,7 @@ function getPkgHas(ret, pkgFile){
 module.exports = function(ret){
     var files = feather.util.merge(feather.util.merge({}, ret.src), ret.pkg);
     var hash = ret.hash = {map: {}}, modulename = feather.config.get('project.modulename');
-    var uriMap = ret.uriMap, commonMap = feather.commonInfo.map;
+    var uriMap = ret.uriMap, commonMap = feather.releaseInfo.map;
 
     feather.util.map(files, function(path, file){
         if(!file.isCssLike && !file.isJsLike && !file.isHtmlLike) return;
