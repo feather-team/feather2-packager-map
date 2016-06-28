@@ -24,7 +24,7 @@ module.exports = function(ret, conf, setting, opt){
 
     if(modulename == 'common' || !modulename){
         var content = {
-            config: feather.config.get(),
+            commonConfig: feather.config.get(),
             components: feather.releaseInfo.components,
             map: {},
             modules: {}
