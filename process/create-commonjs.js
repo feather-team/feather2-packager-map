@@ -8,8 +8,6 @@ module.exports = function(ret, conf, setting, opt){
             var file = feather.file.wrap(feather.project.getProjectPath() + '/static/' + item);
 
             if(item == 'feather.js'){
-                
-
                 if(feather.config.get('combo.use')){
                     feather.config.set('require.config.combo', {
                         onlyUnPackFile: feather.config.get('combo.onlyUnPackFile'),

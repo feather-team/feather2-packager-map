@@ -19,10 +19,6 @@ module.exports = function(ret, conf, setting, opt){
 
     require('./map.js')(ret, conf, setting, opt);
 
-    if(feather.config.get('project.mode') != 'php'){
-        require('./basic-map.js')(ret, conf, setting, opt);
-    }
-
     var path = feather.project.getCachePath() + '/info/' + feather.config.get('project.name') + '.json';
     var modulename = feather.config.get('project.modulename');
 
