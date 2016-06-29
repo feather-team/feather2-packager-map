@@ -24,10 +24,18 @@ module.exports = function(ret, conf, setting, opt){
 
     if(modulename == 'common' || !modulename){
         var content = {
-            commonConfig: feather.config.get(),
+            commonConfig: {},
             components: feather.releaseInfo.components,
             map: {},
             modules: {}
+        };
+
+        'require template widget cssA2R combo statics'.split(' ').forEach(function(item){
+            content.commonConfig[item] = feather.config.get(item);
+        });
+
+        content.commonConfig.project = {
+            domain: feather.config.get('project.domain', '')
         };
 
         feather.util.map(ret.src, function(subpath, file){
