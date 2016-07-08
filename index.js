@@ -3,6 +3,7 @@
 var fis3map = require('fis3-packager-map');
 
 module.exports = function(ret, conf, setting, opt){
+    return;
     //first, call fis3's map
     fis3map(ret, conf, setting, opt);
 
