@@ -3,11 +3,8 @@
 var fis3map = require('fis3-packager-map');
 
 module.exports = function(ret, conf, setting, opt){
-    return;
     //first, call fis3's map
     fis3map(ret, conf, setting, opt);
-
-    require('./process/create-commonjs.js')(ret, conf, setting, opt);
 
     //处理urimap
     var uriMap = ret.uriMap = {}, _ = feather.util.merge(feather.util.merge({}, ret.src), ret.pkg);
@@ -19,36 +16,4 @@ module.exports = function(ret, conf, setting, opt){
     });
 
     require('./map.js')(ret, conf, setting, opt);
-
-    var path = feather.project.getCachePath() + '/info/' + feather.config.get('project.name') + '.json';
-    var modulename = feather.config.get('project.modulename');
-
-    if(modulename == 'common' || !modulename){
-        var content = {
-            commonConfig: {},
-            components: feather.releaseInfo.components,
-            map: {},
-            modules: {}
-        };
-
-        'require template widget cssA2R combo statics'.split(' ').forEach(function(item){
-            content.commonConfig[item] = feather.config.get(item);
-        });
-
-        content.commonConfig.project = {
-            domain: feather.config.get('project.domain', '')
-        };
-
-        feather.util.map(ret.src, function(subpath, file){
-            content.map[file.id] = file.extras;
-        });
-    }else{
-        var content = feather.releaseInfo;
-    }
-
-    content.modules[modulename] = {
-        modifyTime: Date.now()
-    };
-
-    feather.util.write(path, feather.util.json(content));
 };

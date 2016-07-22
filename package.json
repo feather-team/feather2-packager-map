@@ -9,8 +9,7 @@
   "author": "jsyczhanghao@sina.com",
   "license": "ISC",
   "dependencies": {
-    "fis3-packager-map": "^1.0.9",
-    "uglifyjs": "^2.4.10"
+    "fis3-packager-map": "^1.0.9"
   },
   "repository": {
     "type": "git",

@@ -12,8 +12,8 @@ function getPkgHas(ret, pkgFile){
 
 module.exports = function(ret){
     var files = feather.util.merge(feather.util.merge({}, ret.src), ret.pkg);
-    var hash = ret.hash = {map: {}}, modulename = feather.config.get('project.modulename');
-    var uriMap = ret.uriMap, commonMap = feather.releaseInfo.map;
+    var hash = {};
+    var uriMap = ret.uriMap;
 
     feather.util.map(files, function(path, file){
         if(!file.isCssLike && !file.isJsLike && !file.isHtmlLike) return;
@@ -71,7 +71,7 @@ module.exports = function(ret){
                 extras[type].forEach(function(url){
                     var id = url.replace(/^\/([^\/]+)/, '$1');
 
-                    if(!uriMap[url] && !commonMap[id] && !ret.map.res[id] && !feather.util.isRemoteUrl(url)){
+                    if(!uriMap[url] && !ret.map.res[id] && !feather.util.isRemoteUrl(url)){
                         feather.log.warn(file.id + ':[' + url + '] is not exists!');
                         links.push(url);
                     }else{
@@ -132,18 +132,13 @@ module.exports = function(ret){
         }
 
         if(!feather.util.isEmptyObject(_)){
-            hash.map[file.id] = _;
+            hash[file.id] = _;
         }
     });
 
-    var modulename = feather.config.get('project.modulename');
-
-    if(!modulename || modulename == 'common'){
-        hash.commonMap = ret.commonResource;
-        hash.useRequire = feather.config.get('require.use');
-    }
-
-    var file = feather.file.wrap(feather.project.getProjectPath() + '/map/' + (modulename || 'map') + '.php');
-    file.setContent("<?php\r\nreturn " + feather.util.toPhpArray(hash) + ";");
-    ret.pkg[file.subpath] = file;
-}
+    ret.map = hash;
+        
+    var mapFile = feather.file.wrap(feather.project.getProjectPath() + '/map.json');
+    mapFile.setContent(JSON.stringify(ret.map));
+    ret.pkg[mapFile.subpath] = mapFile;
+};
