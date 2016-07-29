@@ -16,7 +16,7 @@ module.exports = function(ret){
     var uriMap = ret.uriMap;
 
     feather.util.map(files, function(path, file){
-        if(!file.isCssLike && !file.isJsLike && !file.isHtmlLike) return;
+        if(!file.isCssLike && !file.isJsLike && !file.isHtmlLike || !file.release) return;
 
         var _ = {}, extras = file.extras;
 

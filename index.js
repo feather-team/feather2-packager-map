@@ -7,7 +7,7 @@ module.exports = function(ret, conf, setting, opt){
     fis3map(ret, conf, setting, opt);
 
     //处理urimap
-    var uriMap = ret.uriMap = {}, _ = feather.util.merge(feather.util.merge({}, ret.src), ret.pkg);
+    var uriMap = ret.uriMap = ret.uriMap || {}, _ = feather.util.merge(feather.util.merge({}, ret.src), ret.pkg);
 
     feather.util.map(_, function(subpath, item){
         if(item.isJsLike || item.isCssLike){
