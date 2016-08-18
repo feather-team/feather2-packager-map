@@ -133,12 +133,15 @@ module.exports = function(ret){
 
         if(!feather.util.isEmptyObject(_)){
             hash[file.id] = _;
+
+
         }
     });
 
     ret.map = hash;
         
     var mapFile = feather.file.wrap(feather.project.getProjectPath() + '/map.json');
-    mapFile.setContent(JSON.stringify(ret.map));
+    mapFile.setContent(JSON.stringify(ret.map, null, 4
+        ));
     ret.pkg[mapFile.subpath] = mapFile;
 };
