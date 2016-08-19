@@ -57,7 +57,7 @@ module.exports = function(ret){
         var types;
 
         if(file.isHtmlLike){
-            types = ['pagelet', 'widget', 'headJs', 'bottomJs', 'css', 'async'];
+            types = ['pagelet', 'widget', 'extends', 'headJs', 'bottomJs', 'css', 'async'];
         }else if(file.isJsLike){
             types = ['deps', 'async'];
         }else if(file.isCssLike){
@@ -103,6 +103,11 @@ module.exports = function(ret){
                 delete _.pagelet;
             }
 
+            if(_['extends']){
+                refs = refs.concat(_['extends']);
+                delete _['extends'];
+            }
+
             if(refs.length){
                 _.refs = refs;
             }
@@ -133,15 +138,12 @@ module.exports = function(ret){
 
         if(!feather.util.isEmptyObject(_)){
             hash[file.id] = _;
-
-
         }
-    });
+    })
 
     ret.map = hash;
         
     var mapFile = feather.file.wrap(feather.project.getProjectPath() + '/map.json');
-    mapFile.setContent(JSON.stringify(ret.map, null, 4
-        ));
+    mapFile.setContent(JSON.stringify(ret.map, null, 4));
     ret.pkg[mapFile.subpath] = mapFile;
 };
