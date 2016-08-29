@@ -16,4 +16,18 @@ module.exports = function(ret, conf, setting, opt){
     });
 
     require('./map.js')(ret, conf, setting, opt);
+
+
+    //save engine config
+    var config = {
+        suffix: feather.config.get('template.suffix')
+    };
+
+    if(feather.config.get('autoPack.type') == 'combo'){
+        config.combo = feather.config.get('autoPack.options');
+    }
+    
+    var configFile = feather.file.wrap(feather.project.getProjectPath() + '/conf/engine.json');
+    configFile.setContent(JSON.stringify(config));
+    ret.pkg[configFile.subpath] = configFile;
 };
