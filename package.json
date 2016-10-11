@@ -1,6 +1,6 @@
 {
   "name": "feather2-packager-map",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "feather2.0生成map策略，基于fis3扩展",
   "main": "index.js",
   "scripts": {
