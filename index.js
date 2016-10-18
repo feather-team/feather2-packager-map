@@ -19,10 +19,7 @@ module.exports = function(ret, conf, setting, opt){
 
 
     //save engine config
-    var config = {
-        suffix: feather.config.get('template.suffix'),
-        mustache: feather.config.get('template.mustache')
-    };
+    var config = feather.config.get('template');
 
     if(feather.config.get('autoPack.type') == 'combo'){
         config.combo = feather.config.get('autoPack.options');
